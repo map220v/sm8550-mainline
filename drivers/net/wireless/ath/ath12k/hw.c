@@ -987,9 +987,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.qmi_cnss_feature_bitmap = BIT(CNSS_QDSS_CFG_MISS_V01) |
 					   BIT(CNSS_PCIE_PERST_NO_PULL_V01),
 
-		.rfkill_pin = 48,
+		.rfkill_pin = 0,
 		.rfkill_cfg = 0,
-		.rfkill_on_level = 1,
+		.rfkill_on_level = 0,
 
 		.rddm_size = 0x780000,
 
