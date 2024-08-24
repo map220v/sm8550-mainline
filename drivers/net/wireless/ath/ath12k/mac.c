@@ -9080,6 +9080,11 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 			ar->mac_addr[4] += ar->pdev_idx;
 		}
 
+		if (!is_valid_ether_addr(ar->mac_addr)) {
+			ath12k_warn(ab, "invalid MAC address; choosing random\n");
+			eth_random_addr(ar->mac_addr);
+		}
+
 		ret = ath12k_mac_setup_register(ar, &ht_cap_info, hw->wiphy->bands);
 		if (ret)
 			goto err_cleanup_unregister;
