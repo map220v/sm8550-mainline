@@ -510,6 +510,7 @@
 		/* Xiaomi change for Display Panel */
 		vreg_s3g_0p7: smps3 {
 			regulator-name = "vreg_s3g_0p7";
+			/* Min should be 1900000 */
 			regulator-min-microvolt = <600000>;
 			regulator-max-microvolt = <1900000>; //2004000
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
@@ -686,7 +687,7 @@
 		pinctrl-0 = <&sde_dsi_active>, <&sde_te_active>;
 		pinctrl-1 = <&sde_dsi_suspend>, <&sde_te_suspend>;
 
-		vddio-supply = <&vreg_s3g_0p7>;
+		//vddio-supply = <&vreg_s3g_0p7>;
 
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 
