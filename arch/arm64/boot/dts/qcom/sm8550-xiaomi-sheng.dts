@@ -19,6 +19,9 @@
 /delete-node/ &rmtfs_mem;
 /delete-node/ &adspslpi_mem;
 
+/* Xiaomi uses alternative gpio's for i2c8 */
+/delete-node/ &qup_i2c8_data_clk;
+
 /* SM8550P doesn't have Modem DSP */
 /delete-node/ &mpss_dsm_mem;
 /delete-node/ &mpss_mem;
@@ -644,6 +647,134 @@
 	status = "okay";
 };
 
+&i2c5 {
+	status = "okay";
+
+	cs35l43_trl: cs35l43@40 {
+		compatible = "cirrus,cs35l43";
+		reg = <0x40>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <98 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "TRL";
+		cirrus,vpbr-thld = <8>;
+		cirrus,vpbr-max-att = <3>;
+		cirrus,vpbr-atk-vol = <5>;
+		cirrus,vpbr-atk-rate = <0>;
+		cirrus,vpbr-wait = <0>;
+		cirrus,vpbr-rel-rate = <0>;
+		cirrus,vpbr-enable = <1>;
+		cirrus,gpio2-src-sel = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,bst-ipk-ma = <4000>;
+	};
+
+	cs35l43_tlh: cs35l43@41 {
+		compatible = "cirrus,cs35l43";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <99 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "TLH";
+		cirrus,vpbr-thld = <8>;
+		cirrus,vpbr-max-att = <3>;
+		cirrus,vpbr-atk-vol = <5>;
+		cirrus,vpbr-atk-rate = <0>;
+		cirrus,vpbr-wait = <0>;
+		cirrus,vpbr-rel-rate = <0>;
+		cirrus,vpbr-enable = <1>;
+		cirrus,gpio2-src-sel = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,bst-ipk-ma = <4000>;
+	};
+
+	cs35l43_tll: cs35l43@42 {
+		compatible = "cirrus,cs35l43";
+		reg = <0x42>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <119 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "TLL";
+		cirrus,vpbr-thld = <8>;
+		cirrus,vpbr-max-att = <3>;
+		cirrus,vpbr-atk-vol = <5>;
+		cirrus,vpbr-atk-rate = <0>;
+		cirrus,vpbr-wait = <0>;
+		cirrus,vpbr-rel-rate = <0>;
+		cirrus,vpbr-enable = <1>;
+		cirrus,gpio2-src-sel = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,bst-ipk-ma = <4000>;
+	};
+};
+
+&i2c8 {
+	status = "okay";
+
+	cs35l43_blh: cs35l43@40 {
+		compatible = "cirrus,cs35l43";
+		reg = <0x40>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "BLH";
+		cirrus,vpbr-thld = <8>;
+		cirrus,vpbr-max-att = <3>;
+		cirrus,vpbr-atk-vol = <5>;
+		cirrus,vpbr-atk-rate = <0>;
+		cirrus,vpbr-wait = <0>;
+		cirrus,vpbr-rel-rate = <0>;
+		cirrus,vpbr-enable = <1>;
+		cirrus,gpio2-src-sel = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,bst-ipk-ma = <4000>;
+	};
+
+	cs35l43_bll: cs35l43@41 {
+		compatible = "cirrus,cs35l43";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "BLL";
+		cirrus,vpbr-thld = <8>;
+		cirrus,vpbr-max-att = <3>;
+		cirrus,vpbr-atk-vol = <5>;
+		cirrus,vpbr-atk-rate = <0>;
+		cirrus,vpbr-wait = <0>;
+		cirrus,vpbr-rel-rate = <0>;
+		cirrus,vpbr-enable = <1>;
+		cirrus,gpio2-src-sel = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,bst-ipk-ma = <4000>;
+	};
+
+	cs35l43_brl: cs35l43@42 {
+		compatible = "cirrus,cs35l43";
+		reg = <0x42>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <85 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		sound-name-prefix = "BRL";
+		cirrus,vpbr-thld = <8>;
+		cirrus,vpbr-max-att = <3>;
+		cirrus,vpbr-atk-vol = <5>;
+		cirrus,vpbr-atk-rate = <0>;
+		cirrus,vpbr-wait = <0>;
+		cirrus,vpbr-rel-rate = <0>;
+		cirrus,vpbr-enable = <1>;
+		cirrus,gpio2-src-sel = <4>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,bst-ipk-ma = <4000>;
+	};
+};
+
 &i2c_master_hub_0 {
 	status = "okay";
 };
@@ -900,6 +1031,22 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-down;
+	};
+
+	qup_i2c8_data_clk: qup-i2c8-data-clk-state {
+		scl-pins {
+			pins = "gpio1";
+			function = "qup2_se0_l1_mirb";
+			drive-strength = <2>;
+			bias-pull-up = <2200>;
+		};
+
+		sda-pins {
+			pins = "gpio0";
+			function = "qup2_se0_l0_mirb";
+			drive-strength = <2>;
+			bias-pull-up = <2200>;
+		};
 	};
 };
 
