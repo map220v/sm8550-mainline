@@ -56,16 +56,28 @@ static const struct regmap_config ktz8866_regmap_config = {
 	.max_register = REG_MAX,
 };
 
+struct ktz8866 *ktz_b;
+
 static int ktz8866_write(struct ktz8866 *ktz, unsigned int reg,
 			 unsigned int val)
 {
-	return regmap_write(ktz->regmap, reg, val);
+	regmap_write(ktz->regmap, reg, val);
+
+	if (ktz_b)
+		regmap_write(ktz_b->regmap, reg, val);
+
+	return 0;
 }
 
 static int ktz8866_update_bits(struct ktz8866 *ktz, unsigned int reg,
 			       unsigned int mask, unsigned int val)
 {
-	return regmap_update_bits(ktz->regmap, reg, mask, val);
+	regmap_update_bits(ktz->regmap, reg, mask, val);
+
+	if (ktz_b)
+		regmap_update_bits(ktz_b->regmap, reg, mask, val);
+
+	return 0;
 }
 
 static int ktz8866_backlight_update_status(struct backlight_device *backlight_dev)
@@ -126,10 +138,14 @@ static void ktz8866_init(struct ktz8866 *ktz)
 
 static int ktz8866_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct backlight_device *backlight_dev;
 	struct backlight_properties props;
 	struct ktz8866 *ktz;
 	int ret = 0;
+
+	if (id->driver_data == 1 && !ktz_b)
+		return -EPROBE_DEFER;
 
 	ktz = devm_kzalloc(&client->dev, sizeof(*ktz), GFP_KERNEL);
 	if (!ktz)
@@ -146,6 +162,11 @@ static int ktz8866_probe(struct i2c_client *client)
 	ret = devm_regulator_get_enable(&client->dev, "vddneg");
 	if (ret)
 		return dev_err_probe(&client->dev, ret, "get regulator vddneg failed\n");
+
+	if (id->driver_data == 2) {
+		ktz_b = ktz;
+		goto end;
+	}
 
 	ktz->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ktz->enable_gpio))
@@ -168,6 +189,7 @@ static int ktz8866_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, backlight_dev);
 	backlight_update_status(backlight_dev);
 
+end:
 	return 0;
 }
 
@@ -179,15 +201,17 @@ static void ktz8866_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ktz8866_ids[] = {
-	{ "ktz8866" },
+	{ "ktz8866", 0},
+	{ "ktz8866a", 1 },
+	{ "ktz8866b", 2 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ktz8866_ids);
 
 static const struct of_device_id ktz8866_match_table[] = {
-	{
-		.compatible = "kinetic,ktz8866",
-	},
+	{ .compatible = "kinetic,ktz8866", },
+	{ .compatible = "kinetic,ktz8866a", },
+	{ .compatible = "kinetic,ktz8866b", },
 	{},
 };
 
