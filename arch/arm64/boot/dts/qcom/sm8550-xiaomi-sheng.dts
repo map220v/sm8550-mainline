@@ -125,11 +125,6 @@
 			no-map;
 		};
 
-		splash_region@b8000000 {
-			reg = <0x0 0xb8000000 0x0 0x2b00000>;
-			no-map;
-		};
-
 		rmtfs_mem: rmtfs-region@ccd00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xccd00000 0x0 0x280000>;
@@ -838,7 +833,7 @@
 		pinctrl-0 = <&sde_dsi_active>, <&sde_te_active>;
 		pinctrl-1 = <&sde_dsi_suspend>, <&sde_te_suspend>;
 
-		//vddio-supply = <&vreg_s3g_0p7>;
+		vddio-supply = <&vreg_s3g_0p7>;
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 		backlight = <&backlight>;
 
