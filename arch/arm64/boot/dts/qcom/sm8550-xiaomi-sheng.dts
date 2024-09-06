@@ -125,11 +125,6 @@
 			no-map;
 		};
 
-		splash_region@b8000000 {
-			reg = <0x0 0xb8000000 0x0 0x2b00000>;
-			no-map;
-		};
-
 		rmtfs_mem: rmtfs-region@ccd00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0xccd00000 0x0 0x280000>;
