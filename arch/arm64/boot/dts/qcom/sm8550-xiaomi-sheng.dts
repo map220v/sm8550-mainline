@@ -48,8 +48,6 @@
 		regulator-enable-ramp-delay = <233>;
 		gpio = <&tlmm 30 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	bl_vddneg_5p8: bl-vddneg-regulator {
@@ -60,8 +58,6 @@
 		regulator-enable-ramp-delay = <233>;
 		gpio = <&tlmm 31 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	gpio-keys {
@@ -645,6 +641,18 @@
 
 &i2c1 {
 	status = "okay";
+
+	backlight: backlight@11 {
+		compatible = "kinetic,ktz8866a";
+		reg = <0x11>;
+		vddpos-supply = <&bl_vddpos_5p8>;
+		vddneg-supply = <&bl_vddneg_5p8>;
+		enable-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		current-num-sinks = <5>;
+		kinetic,current-ramp-delay-ms = <256>;
+		kinetic,led-enable-ramp-delay-ms = <8>;
+		kinetic,enable-lcd-bias;
+	};
 };
 
 &i2c5 {
@@ -782,6 +790,18 @@
 &i2c_hub_2 {
 	status = "okay";
 
+	backlight@11 {
+		compatible = "kinetic,ktz8866b";
+		reg = <0x11>;
+		vddpos-supply = <&bl_vddpos_5p8>;
+		vddneg-supply = <&bl_vddneg_5p8>;
+		enable-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		current-num-sinks = <5>;
+		kinetic,current-ramp-delay-ms = <256>;
+		kinetic,led-enable-ramp-delay-ms = <8>;
+		kinetic,enable-lcd-bias;
+	};
+
 	typec-mux@42 {
 		compatible = "fcs,fsa4480";
 		reg = <0x42>;
@@ -819,8 +839,8 @@
 		pinctrl-1 = <&sde_dsi_suspend>, <&sde_te_suspend>;
 
 		//vddio-supply = <&vreg_s3g_0p7>;
-
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+		backlight = <&backlight>;
 
 		ports {
 			#address-cells = <1>;
