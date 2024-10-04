@@ -295,11 +295,11 @@
 			regulator-boot-on;
 		};
 
-		/* TODO: Xiaomi uses min/max 3300000 for FPC1552 */
-		vreg_l9b_2p9: ldo9 {
-			regulator-name = "vreg_l9b_2p9";
-			regulator-min-microvolt = <2960000>;
-			regulator-max-microvolt = <3008000>;
+		/* Xiaomi change for FPC1552 */
+		vreg_l9b_3p3: ldo9 {
+			regulator-name = "vreg_l9b_3p3";
+			regulator-min-microvolt = <3296000>;
+			regulator-max-microvolt = <3296000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -324,11 +324,11 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		/* TODO: Xiaomi uses min/max 3300000 for Nanosic WN803x */
-		vreg_l13b_3p0: ldo13 {
-			regulator-name = "vreg_l13b_3p0";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
+		/* Xiaomi change for Nanosic WN803x */
+		vreg_l13b_3p3: ldo13 {
+			regulator-name = "vreg_l13b_3p3";
+			regulator-min-microvolt = <3296000>;
+			regulator-max-microvolt = <3296000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
