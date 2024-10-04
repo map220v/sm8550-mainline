@@ -830,8 +830,8 @@
 		reg = <0>;
 
 		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&sde_dsi_active>, <&sde_te_active>;
-		pinctrl-1 = <&sde_dsi_suspend>, <&sde_te_suspend>;
+		pinctrl-0 = <&sde_dsi_active>;
+		pinctrl-1 = <&sde_dsi_suspend>;
 
 		vddio-supply = <&vreg_s3g_0p7>;
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
@@ -1008,20 +1008,6 @@
 	sde_dsi_suspend: sde-dsi-suspend-state {
 		pins = "gpio133";
 		function = "gpio";
-		drive-strength = <2>;
-		bias-pull-down;
-	};
-
-	sde_te_active: sde-te-active-state {
-		pins = "gpio86";
-		function = "mdp_vsync";
-		drive-strength = <2>;
-		bias-pull-down;
-	};
-
-	sde_te_suspend: sde-te-suspend-state {
-		pins = "gpio86";
-		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
