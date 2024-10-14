@@ -184,8 +184,13 @@ static int sheng_tianma_init_sequence(struct panel_info *pinfo)
 #endif
 
 	mipi_dsi_dcs_write_seq(dsi0, 0x9d, 0x01);
+#ifdef NT36532E_DSC
+	mipi_dsi_dcs_write_seq(dsi0, 0xb2, 0x00);//Framerate ctrl
+	mipi_dsi_dcs_write_seq(dsi0, 0xb3, 0x00);//Framerate ctrl2
+#else
 	mipi_dsi_dcs_write_seq(dsi0, 0xb2, 0x91);//Framerate ctrl
 	mipi_dsi_dcs_write_seq(dsi0, 0xb3, 0x40);//Framerate ctrl2
+#endif
 
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi0);
 	if (ret < 0) {
@@ -217,32 +222,8 @@ static const struct drm_display_mode sheng_tianma_modes[] = {
 		.vsync_start = 2032 + 26,
 		.vsync_end = 2032 + 26 + 2,
 		.vtotal = 2032 + 26 + 2 + 138,
-	},
-	{
-		/* 120Hz */
-		.clock = (3048 + 392 + 4 + 92) * (2032 + 26 + 2 + 138) * 120 / 1000,
-		.hdisplay = 3048,
-		.hsync_start = 3048 + 392,
-		.hsync_end = 3048 + 392 + 4,
-		.htotal = 3048 + 392 + 4 + 92,
-		.vdisplay = 2032,
-		.vsync_start = 2032 + 26,
-		.vsync_end = 2032 + 26 + 2,
-		.vtotal = 2032 + 26 + 2 + 138,
-	},
-	{
-		/* 90Hz */
-		.clock = (3048 + 894 + 4 + 92) * (2032 + 26 + 2 + 138) * 90 / 1000,
-		.hdisplay = 3048,
-		.hsync_start = 3048 + 894,
-		.hsync_end = 3048 + 894 + 4,
-		.htotal = 3048 + 894 + 4 + 92,
-		.vdisplay = 2032,
-		.vsync_start = 2032 + 26,
-		.vsync_end = 2032 + 26 + 2,
-		.vtotal = 2032 + 26 + 2 + 138,
-	},
-#endif
+	}
+#else
 	{
 		/* 60Hz */
 		.clock = (3048 + 392 + 4 + 92) * (2032 + 26 + 2 + 138) * 60 / 1000,
@@ -255,6 +236,7 @@ static const struct drm_display_mode sheng_tianma_modes[] = {
 		.vsync_end = 2032 + 26 + 2,
 		.vtotal = 2032 + 26 + 2 + 138,
 	}
+#endif
 };
 
 static struct panel_desc sheng_tianma_desc = {
