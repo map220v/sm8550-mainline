@@ -834,7 +834,7 @@
 	qcom,master-dsi;
 	status = "okay";
 
-	panel@0 {
+	display_panel: panel@0 {
 		compatible = "xiaomi,sheng-nt36532e", "novatek,nt36532e";
 		reg = <0>;
 
@@ -861,7 +861,7 @@
 
 			port@1 {
 				reg = <1>;
-	
+
 				panel_in_1: endpoint {
 					remote-endpoint = <&mdss_dsi1_out>;
 				};
@@ -1015,6 +1015,25 @@
 
 &sleep_clk {
 	clock-frequency = <32764>;
+};
+
+&spi4 {
+	status = "okay";
+
+	touchscreen@0 {
+		compatible = "novatek,NVT-ts-spi";
+		reg = <0>;
+
+		spi-max-frequency = <19200000>;
+		irq-gpios = <&tlmm 25 0x2001>;
+
+		//novatek,pen-support;
+		//novatek,stylus-resol-double;
+
+		panel = <&display_panel>;
+
+		firmware-name = "novatek/novatek_nt36532e_fw.bin";
+	};
 };
 
 &tlmm {
