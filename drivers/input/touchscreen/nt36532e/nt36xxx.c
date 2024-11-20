@@ -1434,6 +1434,7 @@ return:
 static int32_t nvt_ts_probe(struct spi_device *client)
 {
 	int32_t ret = 0;
+	int32_t retry_count = 0;
 
 	NVT_LOG("start\n");
 
@@ -1494,17 +1495,36 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	mutex_init(&ts->lock);
 	mutex_init(&ts->xbuf_lock);
 
+#if defined(CONFIG_DRM_PANEL)
+	/* If the device follows a DRM panel, configure panel follower */
+	if (drm_is_panel_follower(&client->dev)) {
+		ts->panel_follower.funcs = &nt36xxx_panel_follower_funcs;
+		devm_drm_panel_add_follower(&client->dev, &ts->panel_follower);
+	}
+#endif
+
 	//---eng reset before TP_RESX high
 	nvt_eng_reset();
 
 	// need 10ms delay after POR(power on reset)
 	msleep(10);
 
+	while (!ts->panel_on) {
+		if(retry_count > 5) {
+			ret = -EPROBE_DEFER;
+			NVT_ERR("panel wait failed, ret=%d\n", ret);
+			goto err_panelwait_failed;
+		}
+		NVT_LOG("panel is off, retry=%d\n", retry_count);
+		retry_count++;
+		msleep(200);
+	}
+
 	//---check chip version trim---
 	ret = nvt_ts_check_chip_ver_trim_loop();
 	if (ret) {
 		NVT_ERR("chip is not identified\n");
-		ret = -EPROBE_DEFER;
+		ret = -EINVAL;
 		goto err_chipvertrim_failed;
 	}
 
@@ -1647,14 +1667,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 
 	INIT_WORK(&ts->resume_work, nvt_resume_work);
 
-#if defined(CONFIG_DRM_PANEL)
-	/* If the device follows a DRM panel, configure panel follower */
-	if (drm_is_panel_follower(&client->dev)) {
-		ts->panel_follower.funcs = &nt36xxx_panel_follower_funcs;
-		devm_drm_panel_add_follower(&client->dev, &ts->panel_follower);
-	}
-#endif
-
 	bTouchIsAwake = 1;
 	NVT_LOG("end\n");
 
@@ -1693,6 +1705,7 @@ err_input_register_device_failed:
 		ts->input_dev = NULL;
 	}
 err_input_dev_alloc_failed:
+err_panelwait_failed:
 err_chipvertrim_failed:
 	mutex_destroy(&ts->xbuf_lock);
 	mutex_destroy(&ts->lock);
@@ -1945,6 +1958,12 @@ static int panel_prepared(struct drm_panel_follower *follower)
 {
 	struct nvt_ts_data *ts = container_of(follower, struct nvt_ts_data, panel_follower);
 
+	ts->panel_on = true;
+
+	if (!ts->event_wq) {
+		return 0;
+	}
+
 	flush_workqueue(ts->event_wq);
 	queue_work(ts->event_wq, &ts->resume_work);
 
@@ -1954,6 +1973,8 @@ static int panel_prepared(struct drm_panel_follower *follower)
 static int panel_unpreparing(struct drm_panel_follower *follower)
 {
 	struct nvt_ts_data *ts = container_of(follower, struct nvt_ts_data, panel_follower);
+
+	ts->panel_on = false;
 
 	if (ts->event_wq)
 		flush_workqueue(ts->event_wq);
