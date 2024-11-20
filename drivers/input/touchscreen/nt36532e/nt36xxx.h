@@ -165,6 +165,7 @@ struct nvt_ts_data {
 	uint32_t crc_err_flag_addr;
 	struct workqueue_struct *event_wq;
 	struct work_struct resume_work;
+	bool panel_on;
 	uint8_t *data_buf;
 	struct ftouch touches[1];
 	struct ftouch prev_touches[1];
