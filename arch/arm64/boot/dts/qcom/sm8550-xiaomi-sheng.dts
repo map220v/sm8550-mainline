@@ -19,6 +19,26 @@
 
 /delete-node/ &rmtfs_mem;
 /delete-node/ &adspslpi_mem;
+/delete-node/ &xbl_dt_log_merged_mem;
+/delete-node/ &hwfence_shbuf;
+
+/*
+ * Free unused regions, these regions don't exist in downstream
+ * dts, and they aren't removed from DDR Memory Map by UEFI.
+ */
+/delete-node/ &hyp_tags_reserved_mem;
+/delete-node/ &cdsp_secure_heap_mem;
+/delete-node/ &trust_ui_vm_mem;
+/delete-node/ &trust_ui_vm_dump;
+/delete-node/ &trust_ui_vm_qrtr;
+/delete-node/ &trust_ui_vm_vblk0_ring;
+/delete-node/ &trust_ui_vm_vblk1_ring;
+/delete-node/ &trust_ui_vm_swiotlb;
+/delete-node/ &oem_vm_vblk0_ring;
+/delete-node/ &oem_vm_swiotlb;
+/delete-node/ &oem_vm_mem;
+/delete-node/ &hyp_ext_tags_mem;
+/delete-node/ &hyp_ext_reserved_mem;
 
 /* Xiaomi uses alternative gpio's for i2c8 */
 /delete-node/ &qup_i2c8_data_clk;
@@ -131,6 +151,21 @@
 	};
 
 	reserved-memory {
+		xbl_ramdump_mem: xbl-ramdump-region@81200000 {
+			reg = <0 0x81200000 0 0x280000>;
+			no-map;
+		};
+
+		xbl_dt_log_mem: xbl-dt-log-region@81a00000 {
+			reg = <0 0x81a00000 0 0x40000>;
+			no-map;
+		};
+
+		aop_image_mem: aop-image-region@81c00000 {
+			reg = <0 0x81c00000 0 0x60000>;
+			no-map;
+		};
+
 		adspslpi_mem: adspslpi-region@9ea00000 {
 			reg = <0 0x9ea00000 0 0x4680000>;
 			no-map;
@@ -143,6 +178,16 @@
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
+		};
+
+		hwfence_shbuf: hwfence-shbuf-region@e6440000 {
+			reg = <0 0xe6440000 0 0x2dd000>;
+			no-map;
+		};
+
+		llcc_lpi_mem: llcc-lpi-region@ff800000 {
+			reg = <0 0xff800000 0 0x600000>;
+			no-map;
 		};
 	};
 
