@@ -193,6 +193,8 @@
 
 	sound {
 		compatible = "qcom,sm8550-sndcard", "qcom,sm8450-sndcard";
+		pinctrl-0 = <&i2s1_default>;
+		pinctrl-names = "default";
 
 		model = "Xiaomi-Pad6SPro";
 		audio-routing = "IN1_HPHL", "HPHL_OUT",
@@ -206,6 +208,23 @@
 				"TX SWR_INPUT1", "ADC2_OUTPUT",
 				"TX SWR_INPUT0", "ADC3_OUTPUT",
 				"TX SWR_INPUT1", "ADC4_OUTPUT";
+
+		secondary-i2s-dai-link {
+			link-name = "Secondary MI2S Playback";
+
+			cpu {
+				sound-dai = <&q6apmbedai SECONDARY_MI2S_RX>;
+			};
+
+			codec {
+				sound-dai = <&cs35l43_tll>, <&cs35l43_tlh>, <&cs35l43_trl>,
+							<&cs35l43_bll>, <&cs35l43_blh>, <&cs35l43_brl>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 
 		wcd-playback-dai-link {
 			link-name = "WCD Playback";
@@ -1296,6 +1315,39 @@
 		drive-strength = <16>;
 		bias-disable;
 		output-low;
+	};
+
+	i2s1_default: i2s1-default-state {
+		sck-pins {
+			pins = "gpio121";
+			function = "i2s1_sck";
+			drive-strength = <8>;
+			bias-disable;
+			output-high;
+		};
+
+		data0-pins {
+			pins = "gpio122";
+			function = "i2s1_data0";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		ws-pins {
+			pins = "gpio123";
+			function = "i2s1_ws";
+			drive-strength = <8>;
+			bias-disable;
+			output-high;
+		};
+
+		data1-pins {
+			pins = "gpio124";
+			function = "i2s1_data1";
+			drive-strength = <8>;
+			bias-disable;
+			output-high;
+		};
 	};
 };
 
