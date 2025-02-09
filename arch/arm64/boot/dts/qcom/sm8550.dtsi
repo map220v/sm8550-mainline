@@ -3846,8 +3846,8 @@
 			clock-names = "camnoc_axi",
 				      "cpas_ahb",
 				      "cci";
-			pinctrl-0 = <&cci1_0_default>;
-			pinctrl-1 = <&cci1_0_sleep>;
+			pinctrl-0 = <&cci1_0_default &cci1_1_default>;
+			pinctrl-1 = <&cci1_0_sleep &cci1_1_sleep>;
 			pinctrl-names = "default", "sleep";
 			status = "disabled";
 			#address-cells = <1>;
@@ -3855,6 +3855,13 @@
 
 			cci1_i2c0: i2c-bus@0 {
 				reg = <0>;
+				clock-frequency = <1000000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cci1_i2c1: i2c-bus@1 {
+				reg = <1>;
 				clock-frequency = <1000000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -4996,6 +5003,40 @@
 				scl-pins {
 					pins = "gpio115";
 					function = "cci_i2c_scl";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+
+			cci1_1_default: cci1-1-default-state {
+				sda-pins {
+					pins = "gpio208";
+					function = "aon_cci";
+					drive-strength = <2>;
+					bias-pull-up = <2200>;
+				};
+
+				scl-pins {
+					pins = "gpio209";
+					function = "aon_cci";
+					drive-strength = <2>;
+					bias-pull-up = <2200>;
+				};
+			};
+
+			cci1_1_sleep: cci1-1-sleep-state {
+				sda-pins {
+					pins = "gpio208";
+					function = "aon_cci";
+					//function = "egpio";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				scl-pins {
+					pins = "gpio209";
+					function = "aon_cci";
+					//function = "egpio";
 					drive-strength = <2>;
 					bias-pull-down;
 				};
