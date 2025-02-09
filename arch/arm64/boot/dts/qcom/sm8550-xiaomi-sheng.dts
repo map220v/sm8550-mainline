@@ -707,8 +707,8 @@
 		vdd-l1-l2-supply = <&vreg_s4g_1p3>;
 		vdd-l3-l4-supply = <&vreg_bob2>;
 		vdd-l5-supply = <&vreg_s6g_1p8>;
-		vdd-l6-supply = <&vreg_s6g_1p8>;
-		vdd-l7-supply = <&vreg_bob1>;
+		vdd-l6-supply = <&vreg_bob2>;
+		vdd-l7-supply = <&vreg_bob2>;
 
 		/* Xiaomi change for Camera Modules */
 		vreg_l1m_1p2: ldo1 {
