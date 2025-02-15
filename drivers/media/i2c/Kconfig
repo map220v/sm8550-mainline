@@ -402,6 +402,16 @@ config VIDEO_OV02A10
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov02a10.
 
+config VIDEO_OV02B1B
+	tristate "OmniVision OV02B1B sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV02B1B camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov02b1b.
+
 config VIDEO_OV02E10
 	tristate "OmniVision OV02E10 sensor support"
 	select V4L2_CCI_I2C
