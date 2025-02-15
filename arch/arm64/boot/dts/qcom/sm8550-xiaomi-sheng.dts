@@ -61,6 +61,11 @@
 		serial1 = &uart14;
 	};
 
+	chosen {
+		/* Required for libcamera to allocate buffers when udmabuf is used. */
+		bootargs = "udmabuf.size_limit_mb=256";
+	};
+
 	bl_vddpos_5p8: bl-vddpos-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "bl_vddpos_5p8";
@@ -188,6 +193,14 @@
 		llcc_lpi_mem: llcc-lpi-region@ff800000 {
 			reg = <0 0xff800000 0 0x600000>;
 			no-map;
+		};
+
+		/* Required for libcamera to allocate buffers when cma is used. */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			size = <0x0 0x30000000>;
+			reusable;
+			linux,cma-default;
 		};
 	};
 
@@ -761,6 +774,142 @@
 			regulator-min-microvolt = <2856000>;
 			regulator-max-microvolt = <2856000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+	};
+};
+
+&camss {
+	vdda-phy-supply = <&vreg_l1e_0p88>;
+	vdda-pll-supply = <&vreg_l3e_1p2>;
+
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			csiphy1_ep: endpoint {
+				data-lanes = <0>;
+				remote-endpoint = <&ov02b1b_ep>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+
+			csiphy3_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&s5kjn1_ep>;
+			};
+		};
+
+		port@4 {
+			reg = <4>;
+
+			csiphy4_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&ov32d40_ep>;
+			};
+		};
+	};
+};
+
+&cci0 {
+	status = "okay";
+};
+
+&cci0_i2c1 {
+	clock-frequency = <1000000>;
+
+	camera@10 {
+		compatible = "samsung,s5kjn1";
+		reg = <0x10>;
+
+		reset-gpios = <&tlmm 118 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam2_default>, <&cam_rear_reset_default>;
+
+		clocks = <&camcc CAM_CC_MCLK2_CLK>;
+
+		orientation = <1>;
+		rotation = <0>;
+
+		vddio-supply = <&vreg_l4b_1p8>;
+		vddd-supply = <&vreg_l2m_1p08>;
+		vdda-supply = <&vreg_l4m_2p8>;
+
+		port {
+			s5kjn1_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <857600000>;
+				remote-endpoint = <&csiphy3_ep>;
+			};
+		};
+	};
+};
+
+&cci1 {
+	status = "okay";
+};
+
+&cci1_i2c0 {
+	clock-frequency = <400000>;
+
+	camera@3c {
+		compatible = "ovti,ov02b1b";
+		reg = <0x3c>;
+
+		reset-gpios = <&tlmm 117 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam1_default>, <&cam_depth_reset_default>;
+
+		clocks = <&camcc CAM_CC_MCLK1_CLK>;
+
+		orientation = <1>;
+		rotation = <0>;
+
+		vddio-supply = <&vreg_l10b_1p8>;
+		avdd-supply = <&vreg_l6m_2p8>;
+
+		port {
+			ov02b1b_ep: endpoint {
+				data-lanes = <0>;
+				link-frequencies = /bits/ 64 <332800000>;
+				remote-endpoint = <&csiphy1_ep>;
+			};
+		};
+	};
+};
+
+&cci1_i2c1 {
+	clock-frequency = <1000000>;
+
+	camera@10 {
+		compatible = "ovti,ov32d40";
+		reg = <0x10>;
+
+		reset-gpios = <&tlmm 120 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam4_default>, <&cam_front_reset_default>;
+
+		clocks = <&camcc CAM_CC_MCLK4_CLK>;
+
+		orientation = <0>;
+		rotation = <0>;
+
+		vddio-supply = <&vreg_l5m_1p8>;
+		dvdd-supply = <&vreg_l1m_1p2>;
+		avdd-supply = <&vreg_l3m_2p8>;
+
+		port {
+			ov32d40_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <842400000>;
+				remote-endpoint = <&csiphy4_ep>;
+			};
 		};
 	};
 };
@@ -1348,6 +1497,27 @@
 			bias-disable;
 			output-high;
 		};
+	};
+
+	cam_rear_reset_default: cam-rear-reset-default-state {
+		pins = "gpio118";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_depth_reset_default: cam-depth-reset-default-state {
+		pins = "gpio117";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	cam_front_reset_default: cam-front-reset-default-state {
+		pins = "gpio120";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };
 
