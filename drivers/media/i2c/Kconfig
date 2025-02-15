@@ -462,6 +462,16 @@ config VIDEO_OV13B10
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV13B10 camera.
 
+config VIDEO_OV32D40
+	tristate "OmniVision OV32D40 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV32D40 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov32d40.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	help
