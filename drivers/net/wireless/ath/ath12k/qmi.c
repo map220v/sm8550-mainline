@@ -2309,8 +2309,7 @@ static void ath12k_qmi_phy_cap_send(struct ath12k_base *ab)
 		goto out;
 	}
 
-	if (resp.single_chip_mlo_support_valid && resp.single_chip_mlo_support)
-		ab->single_chip_mlo_support = true;
+	ab->single_chip_mlo_support = true;
 
 	if (!resp.num_phy_valid) {
 		ret = -ENODATA;
