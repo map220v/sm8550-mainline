@@ -837,6 +837,8 @@
 		orientation = <1>;
 		rotation = <0>;
 
+		lens-focus = <&gt9764>;
+
 		vddio-supply = <&vreg_l4b_1p8>;
 		vddd-supply = <&vreg_l2m_1p08>;
 		vdda-supply = <&vreg_l4m_2p8>;
@@ -848,6 +850,18 @@
 				remote-endpoint = <&csiphy3_ep>;
 			};
 		};
+	};
+
+	gt9764: camera-lens@c {
+		compatible = "giantec,gt9764";
+		reg = <0x0c>;
+
+		vin-supply = <&vreg_l4b_1p8>;
+		vdd-supply = <&vreg_l7m_2p85>;
+		dongwoon,clock-presc = <0>;
+		dongwoon,aac-timing = <0x6a>;
+		dongwoon,initial-focus = <0x200>;
+		dongwoon,move-delay-us = <7000>;
 	};
 };
 
