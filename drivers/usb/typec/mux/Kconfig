@@ -56,6 +56,16 @@ config TYPEC_MUX_NB7VPQ904M
 	  Say Y or M if your system has a On Semiconductor NB7VPQ904M Type-C
 	  redriver chip found on some devices with a Type-C port.
 
+config TYPEC_MUX_PS5169
+	tristate "Parade PS5169 Type-C redriver driver"
+	depends on I2C
+	depends on DRM || DRM=n
+	select DRM_AUX_BRIDGE if DRM_BRIDGE && OF
+	select REGMAP_I2C
+	help
+	  Say Y or M if your system has a Parade PS5169 Type-C redriver chip
+	  found on some devices with a Type-C port.
+
 config TYPEC_MUX_PS883X
 	tristate "Parade PS883x Type-C retimer driver"
 	depends on I2C
