@@ -140,7 +140,7 @@
 					reg = <1>;
 
 					pmic_glink_ss_in: endpoint {
-						remote-endpoint = <&usb_dp_qmpphy_out>;
+						remote-endpoint = <&redriver_ss_out>;
 					};
 				};
 
@@ -951,6 +951,46 @@
 	firmware-name = "qcom/sm8550/sheng/a740_zap.mbn";
 };
 
+&i2c0 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	typec-retimer@28 {
+		compatible = "parade,ps5169";
+		reg = <0x28>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ps5169_reset_default>;
+
+		reset-gpios = <&tlmm 7 GPIO_ACTIVE_LOW>;
+
+		orientation-switch;
+		retimer-switch;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				redriver_ss_out: endpoint {
+					remote-endpoint = <&pmic_glink_ss_in>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				redriver_ss_in: endpoint {
+					data-lanes = <3 2 1 0>;
+					remote-endpoint = <&usb_dp_qmpphy_out>;
+				};
+			};
+		};
+	};
+};
+
 &i2c1 {
 	status = "okay";
 
@@ -1533,6 +1573,13 @@
 		drive-strength = <2>;
 		bias-disable;
 	};
+
+	ps5169_reset_default: ps5169-reset-default-state {
+		pins = "gpio7";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
 };
 
 &uart14 {
@@ -1598,7 +1645,7 @@
 };
 
 &usb_dp_qmpphy_out {
-	remote-endpoint = <&pmic_glink_ss_in>;
+	remote-endpoint = <&redriver_ss_in>;
 };
 
 &xo_board {
