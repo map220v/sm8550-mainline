@@ -107,6 +107,7 @@ struct dw9768 {
 	u32 aac_mode;
 	u32 aac_timing;
 	u32 clock_presc;
+	u32 initial_focus;
 	u32 move_delay_us;
 };
 
@@ -263,10 +264,20 @@ static int dw9768_init(struct dw9768 *dw9768)
 			return ret;
 	}
 
-	for (val = dw9768->focus->val % DW9768_MOVE_STEPS;
-	     val <= dw9768->focus->val;
+	val = dw9768->initial_focus;
+	for ( ; val > round_down(dw9768->focus->val, DW9768_MOVE_STEPS);
+	     val -= DW9768_MOVE_STEPS) {
+		ret = dw9768_set_dac(dw9768, val-DW9768_MOVE_STEPS);
+		if (ret) {
+			dev_err(&client->dev, "I2C failure: %d", ret);
+			return ret;
+		}
+		usleep_range(dw9768->move_delay_us,
+			     dw9768->move_delay_us + 1000);
+	}
+	for ( ; val < round_down(dw9768->focus->val, DW9768_MOVE_STEPS);
 	     val += DW9768_MOVE_STEPS) {
-		ret = dw9768_set_dac(dw9768, val);
+		ret = dw9768_set_dac(dw9768, val+DW9768_MOVE_STEPS);
 		if (ret) {
 			dev_err(&client->dev, "I2C failure: %d", ret);
 			return ret;
@@ -284,8 +295,17 @@ static int dw9768_release(struct dw9768 *dw9768)
 	int ret, val;
 
 	val = round_down(dw9768->focus->val, DW9768_MOVE_STEPS);
-	for ( ; val >= 0; val -= DW9768_MOVE_STEPS) {
-		ret = dw9768_set_dac(dw9768, val);
+	for ( ; val > dw9768->initial_focus; val -= DW9768_MOVE_STEPS) {
+		ret = dw9768_set_dac(dw9768, val-DW9768_MOVE_STEPS);
+		if (ret) {
+			dev_err(&client->dev, "I2C write fail: %d", ret);
+			return ret;
+		}
+		usleep_range(dw9768->move_delay_us,
+			     dw9768->move_delay_us + 1000);
+	}
+	for ( ; val < dw9768->initial_focus; val += DW9768_MOVE_STEPS) {
+		ret = dw9768_set_dac(dw9768, val+DW9768_MOVE_STEPS);
 		if (ret) {
 			dev_err(&client->dev, "I2C write fail: %d", ret);
 			return ret;
@@ -395,7 +415,7 @@ static int dw9768_init_controls(struct dw9768 *dw9768)
 
 	dw9768->focus = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE, 0,
 					  DW9768_MAX_FOCUS_POS,
-					  DW9768_FOCUS_STEPS, 0);
+					  DW9768_FOCUS_STEPS, dw9768->initial_focus);
 
 	if (hdl->error)
 		return hdl->error;
@@ -423,6 +443,8 @@ static int dw9768_probe(struct i2c_client *client)
 	dw9768->aac_mode = DW9768_AAC_MODE_DEFAULT;
 	dw9768->aac_timing = DW9768_AAC_TIME_DEFAULT;
 	dw9768->clock_presc = DW9768_CLOCK_PRE_SCALE_DEFAULT;
+	dw9768->initial_focus = 0;
+	dw9768->move_delay_us = 0;
 
 	/* Optional indication of AAC mode select */
 	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,aac-mode",
@@ -436,9 +458,21 @@ static int dw9768_probe(struct i2c_client *client)
 	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,aac-timing",
 				 &dw9768->aac_timing);
 
-	dw9768->move_delay_us = dw9768_cal_move_delay(dw9768->aac_mode,
-						      dw9768->clock_presc,
-						      dw9768->aac_timing);
+	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,initial-focus",
+				 &dw9768->initial_focus);
+
+	fwnode_property_read_u32(dev_fwnode(dev), "dongwoon,move-delay-us",
+				 &dw9768->move_delay_us);
+
+	dw9768->initial_focus = round_down(dw9768->initial_focus, DW9768_MOVE_STEPS);
+
+	if (dw9768->initial_focus > round_down(DW9768_MAX_FOCUS_POS, DW9768_MOVE_STEPS))
+		dw9768->initial_focus = round_down(DW9768_MAX_FOCUS_POS, DW9768_MOVE_STEPS);
+
+	if (!dw9768->move_delay_us)
+		dw9768->move_delay_us = dw9768_cal_move_delay(dw9768->aac_mode,
+						      	      dw9768->clock_presc,
+						      	      dw9768->aac_timing);
 
 	for (i = 0; i < ARRAY_SIZE(dw9768_supply_names); i++)
 		dw9768->supplies[i].supply = dw9768_supply_names[i];
@@ -529,6 +563,7 @@ static void dw9768_remove(struct i2c_client *client)
 
 static const struct of_device_id dw9768_of_table[] = {
 	{ .compatible = "dongwoon,dw9768" },
+	{ .compatible = "giantec,gt9764" },
 	{ .compatible = "giantec,gt9769" },
 	{}
 };
