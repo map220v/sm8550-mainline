@@ -23,8 +23,6 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
-#define NT36532E_DSC
-
 #define DSI_NUM_MIN 1
 
 struct panel_info {
@@ -88,12 +86,13 @@ static int sheng_tianma_init_sequence(struct panel_info *pinfo)
 {
 	struct mipi_dsi_device *dsi0 = pinfo->dsi[0];
 	struct device *dev = &dsi0->dev;
+	struct drm_dsc_picture_parameter_set pps;
 	int ret;
 
 	int cur_mode = nt36532e_get_current_mode(pinfo);
 	int cur_vrefresh = drm_mode_vrefresh(&pinfo->desc->modes[cur_mode]);
 
-	/* NT36532E accepts commands only on DSI0 */
+	/* Commands sent only to dsi0 here. qcom,sync-dual-dsi in dsi nodes will send them to both dsi ports */
 
 	/* Timings Page 3 Cmd Set */
 	mipi_dsi_dcs_write_seq(dsi0, 0xff, 0x26);
@@ -104,7 +103,7 @@ static int sheng_tianma_init_sequence(struct panel_info *pinfo)
 	/* Timings Page 2 Cmd Set */
 	mipi_dsi_dcs_write_seq(dsi0, 0xff, 0x25);
 	mipi_dsi_dcs_write_seq(dsi0, 0xfb, 0x01);
-	mipi_dsi_dcs_write_seq(dsi0, 0x05, 0x00);
+	mipi_dsi_dcs_write_seq(dsi0, 0x05, 0x00);//Disable auto VBP VFP, must set them in 0x3b
 
 	/* Timings Page 4 Cmd Set */
 	mipi_dsi_dcs_write_seq(dsi0, 0xff, 0x27);
@@ -194,20 +193,18 @@ static int sheng_tianma_init_sequence(struct panel_info *pinfo)
 	mipi_dsi_dcs_write_seq(dsi0, 0xff, 0x10);
 	mipi_dsi_dcs_write_seq(dsi0, 0xfb, 0x01);//Don't reload registers from MTP/Default values
 	mipi_dsi_dcs_write_seq(dsi0, 0x35, 0x00);//Tear on
-	mipi_dsi_dcs_write_seq(dsi0, 0x3b, 0x03, 0x8c, 0x1a, 0x04, 0x04, 0x00);
-	mipi_dsi_dcs_write_seq(dsi0, 0x51, 0x0f, 0xff);//Set brightness(controls power output to leds or ktz8866?)
+	mipi_dsi_dcs_write_seq(dsi0, 0x3b, 0x03, 0x8c, 0x1a, 0x04, 0x04, 0x00);//?, VBP+VSYNC, VFP, ?, ?, (VBP+VSYNC)_HI[1:0].
+	mipi_dsi_dcs_write_seq(dsi0, 0x51, 0x0f, 0xff);//Set brightness(controls power output to ktz8866 chips)
 	mipi_dsi_dcs_write_seq(dsi0, 0x53, 0x24);//Enable backlight and no dimming
 
-#ifdef NT36532E_DSC
 	mipi_dsi_dcs_write_seq(dsi0, 0x90, 0x03);//Enable DSC
-	mipi_dsi_dcs_write_seq(dsi0, 0x91,
-			       0x89, 0x28, 0x00, 0x10, 0xd2, 0x00, 0x02, 0x9d,
-			       0x01, 0xb1, 0x00, 0x0a, 0x06, 0xef, 0x04, 0x82);//Set PPS
-	mipi_dsi_dcs_write_seq(dsi0, 0x92, 0x10, 0xf0);
-#else
-	mipi_dsi_dcs_write_seq(dsi0, 0x90, 0x00);
-	mipi_dsi_dcs_write_seq(dsi0, 0x92, 0x10, 0xf0);
-#endif
+
+	drm_dsc_pps_payload_pack(&pps, &pinfo->desc->dsc);
+	ret = mipi_dsi_picture_parameter_set(pinfo->dsi[0], &pps);
+	if (ret < 0) {
+		dev_err(dev, "failed to transmit PPS: %d\n", ret);
+		return ret;
+	}
 
 	mipi_dsi_dcs_write_seq(dsi0, 0x9d, 0x01);
 
@@ -242,7 +239,6 @@ static int sheng_tianma_init_sequence(struct panel_info *pinfo)
 }
 
 static const struct drm_display_mode sheng_tianma_modes[] = {
-#ifdef NT36532E_DSC
 	{
 		/* 144Hz */
 		.clock = (3048 + 142 + 4 + 92) * (2032 + 26 + 2 + 138) * 144 / 1000,
@@ -303,20 +299,6 @@ static const struct drm_display_mode sheng_tianma_modes[] = {
 		.vsync_end = 2032 + 4422 + 2,
 		.vtotal = 2032 + 4422 + 2 + 138,
 	}
-#else
-	{
-		/* 60Hz */
-		.clock = (3048 + 392 + 4 + 92) * (2032 + 26 + 2 + 138) * 60 / 1000,
-		.hdisplay = 3048,
-		.hsync_start = 3048 + 392,
-		.hsync_end = 3048 + 392 + 4,
-		.htotal = 3048 + 392 + 4 + 92,
-		.vdisplay = 2032,
-		.vsync_start = 2032 + 26,
-		.vsync_end = 2032 + 26 + 2,
-		.vtotal = 2032 + 26 + 2 + 138,
-	}
-#endif
 };
 
 static struct panel_desc sheng_tianma_desc = {
@@ -333,7 +315,7 @@ static struct panel_desc sheng_tianma_desc = {
 	.lanes = 4,
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-				MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
+		      MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_LPM,
 	.init_sequence = sheng_tianma_init_sequence,
 	.is_dual_dsi = true,
 	.dsc = {
@@ -363,7 +345,6 @@ static void nt36532e_reset(struct panel_info *pinfo)
 static int nt36532e_prepare(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
-	struct drm_dsc_picture_parameter_set pps;
 	int ret;
 
 	ret = regulator_enable(pinfo->vddio);
@@ -380,23 +361,6 @@ static int nt36532e_prepare(struct drm_panel *panel)
 		dev_err(panel->dev, "failed to initialize panel: %d\n", ret);
 		return ret;
 	}
-
-#ifdef NT36532E_DSC
-	drm_dsc_pps_payload_pack(&pps, &pinfo->desc->dsc);
-
-	ret = mipi_dsi_picture_parameter_set(pinfo->dsi[0], &pps);
-	if (ret < 0) {
-		dev_err(panel->dev, "failed to transmit PPS: %d\n", ret);
-		return ret;
-	}
-
-	/* Not required, NT36532E has DSC always enabled. */
-	ret = mipi_dsi_compression_mode(pinfo->dsi[0], true);
-	if (ret < 0) {
-		dev_err(panel->dev, "failed to enable compression mode: %d\n", ret);
-		return ret;
-	}
-#endif
 
 	return 0;
 }
@@ -567,10 +531,8 @@ static int nt36532e_probe(struct mipi_dsi_device *dsi)
 		pinfo->dsi[i]->lanes = pinfo->desc->lanes;
 		pinfo->dsi[i]->format = pinfo->desc->format;
 		pinfo->dsi[i]->mode_flags = pinfo->desc->mode_flags;
-#ifdef NT36532E_DSC
 		pinfo->dsi[i]->dsc = &pinfo->desc->dsc;
 		pinfo->dsi[i]->dsc_slice_per_pkt = 2;
-#endif
 
 		ret = mipi_dsi_attach(pinfo->dsi[i]);
 		if (ret < 0)
