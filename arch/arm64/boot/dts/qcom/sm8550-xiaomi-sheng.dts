@@ -1193,6 +1193,8 @@
 		pinctrl-1 = <&sde_dsi_suspend>;
 
 		vddio-supply = <&vreg_s3g_0p7>;
+		avdd-supply = <&bl_vddpos_5p8>;
+		avee-supply = <&bl_vddneg_5p8>;
 
 		reset-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 		backlight = <&backlight>;

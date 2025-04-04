@@ -33,7 +33,7 @@ struct panel_info {
 	enum drm_panel_orientation orientation;
 
 	struct gpio_desc *reset_gpio;
-	struct regulator *vddio;
+	struct regulator_bulk_data supplies[3];
 };
 
 struct panel_desc {
@@ -333,9 +333,9 @@ static int nt36532e_prepare(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 	int ret;
 
-	ret = regulator_enable(pinfo->vddio);
-	if (ret) {
-		dev_err(panel->dev, "failed to enable vddio regulator: %d\n", ret);
+	ret = regulator_bulk_enable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
+	if (ret < 0) {
+		dev_err(panel->dev, "failed to enable regulators: %d\n", ret);
 		return ret;
 	}
 
@@ -343,7 +343,7 @@ static int nt36532e_prepare(struct drm_panel *panel)
 
 	ret = pinfo->desc->init_sequence(pinfo);
 	if (ret < 0) {
-		regulator_disable(pinfo->vddio);
+		regulator_bulk_disable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
 		dev_err(panel->dev, "failed to initialize panel: %d\n", ret);
 		return ret;
 	}
@@ -372,7 +372,7 @@ static int nt36532e_unprepare(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 
 	gpiod_set_value_cansleep(pinfo->reset_gpio, 1);
-	regulator_disable(pinfo->vddio);
+	regulator_bulk_disable(ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
 
 	return 0;
 }
@@ -447,9 +447,12 @@ static int nt36532e_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(pinfo))
 		return PTR_ERR(pinfo);
 
-	pinfo->vddio = devm_regulator_get(dev, "vddio");
-	if (IS_ERR(pinfo->vddio))
-		return dev_err_probe(dev, PTR_ERR(pinfo->vddio), "failed to get vddio regulator\n");
+	pinfo->supplies[0].supply = "vddio";
+	pinfo->supplies[1].supply = "avdd";
+	pinfo->supplies[2].supply = "avee";
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(pinfo->supplies), pinfo->supplies);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to get regulators\n");
 
 	pinfo->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(pinfo->reset_gpio))
