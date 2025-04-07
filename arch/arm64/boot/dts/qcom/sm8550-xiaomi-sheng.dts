@@ -1173,6 +1173,12 @@
 	};
 };
 
+&iris {
+	status = "okay";
+
+	firmware-name = "qcom/sm8550/sheng/vpu30_4v.mbn";
+};
+
 &mdss {
 	status = "okay";
 };
