@@ -837,6 +837,13 @@ config HID_MULTITOUCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-multitouch.
 
+config HID_NANOSIC_WN8030
+	tristate "Nanosic WN8030 keyboard MCU"
+	depends on OF && PM && HIDRAW && I2C && GPIOLIB
+	help
+	  Say Y here if you want to enable support for the Nanosic WN8030 MCU
+	  used as keyboard controller in devices such as Xiaomi Pad 6S Pro 12.4 
+
 config HID_NINTENDO
 	tristate "Nintendo Joy-Con, NSO, and Pro Controller support"
 	depends on NEW_LEDS
