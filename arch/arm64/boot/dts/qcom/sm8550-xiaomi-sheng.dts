@@ -43,6 +43,9 @@
 /* Xiaomi uses alternative gpio's for i2c8 */
 /delete-node/ &qup_i2c8_data_clk;
 
+/* Xiaomi change for Nanosic WN803x */
+/delete-node/ &qup_i2c9_data_clk;
+
 /* SM8550P doesn't have Modem DSP */
 /delete-node/ &mpss_dsm_mem;
 /delete-node/ &mpss_mem;
@@ -1137,6 +1140,28 @@
 	};
 };
 
+&i2c9 {
+	status = "okay";
+
+	nanosic_mcu@4c {
+		compatible = "nanosic,wn8030-sheng";
+		reg = <0x4c>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nanosic_mcu_default>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <62 IRQ_TYPE_EDGE_RISING>;
+
+		reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+		sleep-gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
+		status-gpios = <&tlmm 56 GPIO_ACTIVE_HIGH>;
+
+		vddio-supply = <&vreg_l12b_1p8>;
+		dvdd-supply = <&vreg_l13b_3p3>;
+	};
+};
+
 &i2c_master_hub_0 {
 	status = "okay";
 };
@@ -1587,6 +1612,37 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	qup_i2c9_data_clk: qup-i2c9-data-clk-state {
+		/* SDA, SCL */
+		pins = "gpio60", "gpio61";
+		function = "qup2_se1";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	nanosic_mcu_default: nanosic-mcu-default-state {
+		status-pins {
+			pins = "gpio56";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		sleep-pins {
+			pins = "gpio57";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		reset-pins {
+			pins = "gpio58";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
 	};
 };
 
