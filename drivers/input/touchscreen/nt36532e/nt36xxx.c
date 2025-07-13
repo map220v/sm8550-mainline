@@ -931,101 +931,6 @@ void nvt_read_fw_history(uint32_t fw_history_addr)
 }
 #endif	/* #if NVT_TOUCH_WDT_RECOVERY */
 
-#if POINT_DATA_CHECKSUM
-static int32_t nvt_ts_point_data_checksum(uint8_t *buf, uint8_t length)
-{
-	uint8_t checksum = 0;
-	int32_t i = 0;
-
-	// Generate checksum
-	for (i = 0; i < length - 1; i++) {
-		checksum += buf[i + 1];
-	}
-	checksum = (~checksum + 1);
-
-	// Compare ckecksum and dump fail data
-	if (checksum != buf[length]) {
-		NVT_ERR("i2c/spi packet checksum not match. (point_data[%d]=0x%02X, checksum=0x%02X)\n",
-				length, buf[length], checksum);
-
-		for (i = 0; i < 10; i++) {
-			NVT_LOG("%02X %02X %02X %02X %02X %02X\n",
-					buf[1 + i*6], buf[2 + i*6], buf[3 + i*6], buf[4 + i*6], buf[5 + i*6], buf[6 + i*6]);
-		}
-
-		NVT_LOG("%02X %02X %02X %02X %02X\n", buf[61], buf[62], buf[63], buf[64], buf[65]);
-
-		return -1;
-	}
-
-	return 0;
-}
-#endif /* POINT_DATA_CHECKSUM */
-
-void thp_parse_frame(uint16_t* touch_matrix) {
-	uint16_t rx_count, tx_count;
-	uint16_t max_row, max_col;
-	uint16_t max_weight = 0;
-
-	const uint16_t offset = 10000;
-	const uint16_t threshold = 300;
-
-	uint64_t weights_sum_x = 0;
-	uint64_t weights_sum_y = 0;
-	uint32_t weights_sum = 0;
-
-	rx_count = ts->y_num;
-	tx_count = ts->x_num;
-
-	for (uint16_t row = 0; row < rx_count; row++) {
-		for (uint16_t col = 0; col < tx_count; col++) {
-			int16_t weight = touch_matrix[row * tx_count + col] - offset;
-			if (weight > max_weight) {
-				max_weight = weight;
-				max_row = row;
-				max_col = col;
-			}
-		}
-	}
-
-	for (int16_t i = -1; i <= 1; i++) {
-		for (int16_t j = -1; j <= 1; j++) {
-			int16_t row = max_row + i;
-			int16_t col = max_col + j;
-			if (row >= 0 && row < rx_count && col >= 0 && col < tx_count) {
-				int16_t weight = touch_matrix[row * tx_count + col] - offset;
-				//if (weight <= 100)
-				//	weight = 0;
-				weights_sum_x += col * weight;
-				weights_sum_y += row * weight;
-				weights_sum += weight;
-			}
-		}
-	}
-
-	memcpy(ts->prev_touches, ts->touches, sizeof(ts->prev_touches));
-	if(max_weight <= threshold)
-		ts->touches[0].active = false;
-	else {
-		weights_sum_x = weights_sum_x << 8;
-		weights_sum_y = weights_sum_y << 8;
-
-		weights_sum_x = (weights_sum_x * ts->abs_x_max) / (tx_count - 1);
-		weights_sum_y = (weights_sum_y * ts->abs_y_max) / (rx_count - 1);
-
-		weights_sum_x /= weights_sum;
-		weights_sum_y /= weights_sum;
-
-		ts->touches[0].abs_x = (weights_sum_x + 0x7f) >> 8;
-		ts->touches[0].abs_y = (weights_sum_y + 0x7f) >> 8;
-		//Reverse Y
-		ts->touches[0].abs_y = -(ts->touches[0].abs_y - 20320);
-		ts->touches[0].active = true;
-
-		//printk("X=%5d Y=%5d strength=%5d", ts->touches[0].abs_x, ts->touches[0].abs_y, max_weight);
-	}
-}
-
 /*******************************************************
 Description:
 	Novatek touchscreen work function.
@@ -1037,7 +942,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 {
 	int32_t ret = -1;
 	uint8_t *point_data = ts->data_buf;
-	uint16_t *frame_buf = (uint16_t *)(ts->data_buf + 1 + 0x140);
+	uint8_t fw_state[7];
 	uint32_t position = 0;
 	uint32_t input_x = 0;
 	uint32_t input_y = 0;
@@ -1047,6 +952,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	uint8_t press_id[TOUCH_MAX_FINGER_NUM] = {0};
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
+#if 0
 	uint8_t pen_format_id = 0;
 	uint32_t pen_x = 0;
 	uint32_t pen_y = 0;
@@ -1057,6 +963,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	uint32_t pen_btn1 = 0;
 	uint32_t pen_btn2 = 0;
 	uint32_t pen_battery = 0;
+#endif
 
 	mutex_lock(&ts->lock);
 
@@ -1068,53 +975,31 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 		}
 	}
 
+	nvt_set_page(0x117700);
 #if NVT_SUPER_RESOLUTION_N
-	ret = CTP_SPI_READ(ts->client, point_data, 0x1400 + 1);
+	ret = CTP_SPI_READ(ts->client, point_data, 0x40 + POINT_DATA_LEN + 1);
 #else /* #if NVT_SUPER_RESOLUTION_N */
 	if (ts->pen_support)
-		ret = CTP_SPI_READ(ts->client, point_data, POINT_DATA_LEN + PEN_DATA_LEN + 1);
+		ret = CTP_SPI_READ(ts->client, point_data, 0x40 + POINT_DATA_LEN + PEN_DATA_LEN + 1);
 	else
-		ret = CTP_SPI_READ(ts->client, point_data, POINT_DATA_LEN + 1);
+		ret = CTP_SPI_READ(ts->client, point_data, 0x40 + POINT_DATA_LEN + 1);
 #endif /* #if NVT_SUPER_RESOLUTION_N */
+	nvt_set_page(ts->mmap->EVENT_BUF_ADDR);
 	if (ret < 0) {
 		NVT_ERR("CTP_SPI_READ failed.(%d)\n", ret);
 		goto XFER_ERROR;
 	}
 
-	//START Custom
-	thp_parse_frame(frame_buf);
-
-	if(ts->touches[0].active) {
-		input_mt_slot(ts->input_dev, 0);
-		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
-
-		input_report_abs(ts->input_dev, ABS_MT_POSITION_X, ts->touches[0].abs_x);
-		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, ts->touches[0].abs_y);
-		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
-		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 1);
-		input_report_key(ts->input_dev, BTN_TOUCH, 1);
+	ret = CTP_SPI_READ(ts->client, fw_state, 7);
+	if (ret < 0) {
+		NVT_ERR("CTP_SPI_READ failed.(%d)\n", ret);
+		goto XFER_ERROR;
 	}
-	else {
-		input_mt_slot(ts->input_dev, 0);
-		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
-		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
-		input_report_key(ts->input_dev, BTN_TOUCH, 0);
-		if (ts->prev_touches[0].active == 1)
-			nvt_set_custom_cmd(0x01, 0x02);
-	}
-
-	input_sync(ts->input_dev);
-
-	mutex_unlock(&ts->lock);
-	return IRQ_HANDLED;
-	//END Custom
-
 #if NVT_TOUCH_WDT_RECOVERY
 	/* ESD protect by WDT */
-	if (nvt_wdt_fw_recovery(point_data)) {
-		NVT_ERR("Recover for fw reset, %02X\n", point_data[1]);
-		if (point_data[1] == 0xFE) {
+	if (nvt_wdt_fw_recovery(fw_state)) {
+		NVT_ERR("Recover for fw reset, %02X\n", fw_state[1]);
+		if (fw_state[1] == 0xFE) {
 			nvt_sw_reset_idle();
 		}
 		nvt_read_fw_history(ts->mmap->MMAP_HISTORY_EVENT0);
@@ -1131,64 +1016,32 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* #if NVT_TOUCH_WDT_RECOVERY */
 
 	/* ESD protect by FW handshake */
-	if (nvt_fw_recovery(point_data)) {
+	if (nvt_fw_recovery(fw_state)) {
 		goto XFER_ERROR;
 	}
 
-#if POINT_DATA_CHECKSUM
-   if (POINT_DATA_LEN >= POINT_DATA_CHECKSUM_LEN) {
-       ret = nvt_ts_point_data_checksum(point_data, POINT_DATA_CHECKSUM_LEN);
-       if (ret) {
-           goto XFER_ERROR;
-       }
-   }
-#endif /* POINT_DATA_CHECKSUM */
-
-	finger_cnt = 0;
-
 	for (i = 0; i < ts->max_touch_num; i++) {
-		position = 1 + 6 * i;
-		input_id = (uint8_t)(point_data[position + 0] >> 3);
-		if ((input_id == 0) || (input_id > ts->max_touch_num))
-			continue;
-
-		if (((point_data[position] & 0x07) == 0x01) || ((point_data[position] & 0x07) == 0x02)) {	//finger down (enter & moving)
+		position = 1 + 0x40 + 0x4c * i;
+		input_id = i;
+		if (point_data[position] & 0x07) {
 #if NVT_SUPER_RESOLUTION_N
-			input_x = (uint32_t)(point_data[position + 1] << 8) + (uint32_t) (point_data[position + 2]);
-			input_y = (uint32_t)(point_data[position + 3] << 8) + (uint32_t) (point_data[position + 4]);
-			if ((input_x < 0) || (input_y < 0))
+			input_x = (uint32_t)(point_data[position + 9] << 8) + (uint32_t)(point_data[position + 8]);
+			input_y = (uint32_t)(point_data[position + 11] << 8) + (uint32_t)(point_data[position + 10]);
+			if ((input_x > ts->abs_x_max * NVT_SUPER_RESOLUTION_N) || (input_y > ts->abs_y_max * NVT_SUPER_RESOLUTION_N))
 				continue;
-			if ((input_x > ts->abs_x_max * NVT_SUPER_RESOLUTION_N - 1) || (input_y > ts->abs_y_max * NVT_SUPER_RESOLUTION_N - 1))
-				continue;
-			input_w = (uint32_t)(point_data[position + 5]);
-			if (input_w == 0)
-				input_w = 1;
-			input_p = (uint32_t)(point_data[1 + 98 + i]);
-			if (input_p == 0)
-				input_p = 1;
 #else /* #if NVT_SUPER_RESOLUTION_N */
-			input_x = (uint32_t)(point_data[position + 1] << 4) + (uint32_t) (point_data[position + 3] >> 4);
-			input_y = (uint32_t)(point_data[position + 2] << 4) + (uint32_t) (point_data[position + 3] & 0x0F);
-			if ((input_x < 0) || (input_y < 0))
+			input_x = (uint32_t)(point_data[position + 5] << 8) + (uint32_t)(point_data[position + 4]);
+			input_y = (uint32_t)(point_data[position + 7] << 8) + (uint32_t)(point_data[position + 6]);
+			if ((input_x > ts->abs_x_max) || (input_y > ts->abs_y_max))
 				continue;
-			if ((input_x > ts->abs_x_max - 1) || (input_y > ts->abs_y_max - 1))
-				continue;
-			input_w = (uint32_t)(point_data[position + 4]);
-			if (input_w == 0)
-				input_w = 1;
-			if (i < 2) {
-				input_p = (uint32_t)(point_data[position + 5]) + (uint32_t)(point_data[i + 63] << 8);
-				if (input_p > TOUCH_FORCE_NUM)
-					input_p = TOUCH_FORCE_NUM;
-			} else {
-				input_p = (uint32_t)(point_data[position + 5]);
-			}
+#endif /* #if NVT_SUPER_RESOLUTION_N */
+			input_w = (uint32_t)(point_data[position + 25] << 8) + (uint32_t)(point_data[position + 24]);
+			input_p = (uint32_t)(point_data[position + 61] << 8) + (uint32_t)(point_data[position + 60]);
 			if (input_p == 0)
 				input_p = 1;
-#endif /* #if NVT_SUPER_RESOLUTION_N */
 
-			press_id[input_id - 1] = 1;
-			input_mt_slot(ts->input_dev, input_id - 1);
+			press_id[input_id] = 1;
+			input_mt_slot(ts->input_dev, input_id);
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
@@ -1199,6 +1052,9 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 			finger_cnt++;
 		}
 	}
+
+	if (!finger_cnt)
+		nvt_set_custom_cmd(0x01, 0x02);
 
 	for (i = 0; i < ts->max_touch_num; i++) {
 		if (press_id[i] != 1) {
@@ -1213,6 +1069,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 	input_sync(ts->input_dev);
 
+	/* TODO: Find pen struct in fw if pen is processed */
+#if 0
 	if (ts->pen_support) {
 /*
 		//--- dump pen buf ---
@@ -1268,6 +1126,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 		input_sync(ts->pen_input_dev);
 	} /* if (ts->pen_support) */
+#endif
 
 XFER_ERROR:
 
@@ -1558,11 +1417,11 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 #if TOUCH_MAX_FINGER_NUM > 1
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);    //area = 255
 #if NVT_SUPER_RESOLUTION_N
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max * NVT_SUPER_RESOLUTION_N - 1, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max * NVT_SUPER_RESOLUTION_N - 1, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max * NVT_SUPER_RESOLUTION_N, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max * NVT_SUPER_RESOLUTION_N, 0, 0);
 #else /* #if NVT_SUPER_RESOLUTION_N */
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max - 1, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max - 1, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
 #endif /* #if NVT_SUPER_RESOLUTION_N */
 #endif //TOUCH_MAX_FINGER_NUM > 1
 
