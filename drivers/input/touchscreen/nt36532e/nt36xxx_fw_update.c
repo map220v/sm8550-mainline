@@ -893,7 +893,8 @@ void Boot_Update_Firmware(struct work_struct *work)
 	//enter doze mode
 	nvt_set_custom_cmd(0x01, 0x02);
 	//test
-	//nvt_set_custom_cmd(0x06, 0x05);
+	//nvt_set_custom_cmd(0x08, 0x01);
+	//nvt_set_custom_cmd(0x07, 0x00);
 	mutex_unlock(&ts->lock);
 }
 #endif /* BOOT_UPDATE_FIRMWARE */

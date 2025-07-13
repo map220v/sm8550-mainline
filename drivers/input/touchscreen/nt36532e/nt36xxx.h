@@ -69,7 +69,7 @@
 #define TOUCH_DEFAULT_MAX_WIDTH 3048
 #define TOUCH_DEFAULT_MAX_HEIGHT 2032
 #define TOUCH_MAX_FINGER_NUM 10
-#define TOUCH_FORCE_NUM 1000
+#define TOUCH_FORCE_NUM 1500
 //---for Pen---
 #define PEN_PRESSURE_MAX (4095)
 #define PEN_DISTANCE_MAX (1)
@@ -82,13 +82,7 @@
 #define BOOT_UPDATE_FIRMWARE_NAME "novatek/nt36532e.bin"
 #define MP_UPDATE_FIRMWARE_NAME   "novatek_nt36532e_mp.bin"
 #define NVT_SUPER_RESOLUTION_N 10
-#if NVT_SUPER_RESOLUTION_N
-#define POINT_DATA_LEN 108
-#else
-#define POINT_DATA_LEN 65
-#endif
-#define POINT_DATA_CHECKSUM 0
-#define POINT_DATA_CHECKSUM_LEN 65
+#define POINT_DATA_LEN 760
 
 //---ESD Protect.---
 #define NVT_TOUCH_WDT_RECOVERY 1
@@ -167,8 +161,6 @@ struct nvt_ts_data {
 	struct work_struct resume_work;
 	bool panel_on;
 	uint8_t *data_buf;
-	struct ftouch touches[1];
-	struct ftouch prev_touches[1];
 };
 
 typedef enum {
