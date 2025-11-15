@@ -220,6 +220,7 @@ int32_t nvt_read_reg(nvt_ts_reg_t reg, uint8_t *val);
 int32_t nvt_check_spi_dma_tx_info(void);
 int32_t nvt_check_tx_auto_copy(void);
 int nvt_set_custom_cmd(u8 cmd, u16 value);
+void nvt_set_doze_delay(u16 value);
 void Boot_Update_Firmware(struct work_struct *work);
 void thp_parse_frame(uint16_t* touch_matrix);
 #endif /* _LINUX_NVT_TOUCH_H */
