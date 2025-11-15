@@ -734,7 +734,7 @@ int nvt_set_custom_cmd(u8 cmd, u16 value) {
 		buf[0] = 0x50;
 		//read status
 		buf[1] = 0xFF;
-		CTP_SPI_READ(ts->client, (u8 *)buf, 2);
+		ret = CTP_SPI_READ(ts->client, (u8 *)buf, 2);
 		if (ret) {
 			NVT_ERR("CTP_SPI_READ fail! ret=%d\n", ret);
 			goto nvt_set_custom_cmd_out;
@@ -755,6 +755,16 @@ nvt_set_custom_cmd_out:
 	NVT_LOG("--\n");
 
 	return ret;
+}
+
+void nvt_set_doze_delay(u16 value) {
+	u8 buf[3] = {0};
+
+	nvt_set_page(0x113718);
+	buf[0] = 0x113718 & 0x7F;
+	buf[1] = value & 0xFF;
+	buf[2] = value >> 8;
+	CTP_SPI_WRITE(ts->client, buf, 3);
 }
 
 static void release_touch_event(void) {
@@ -1009,6 +1019,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 		nvt_update_firmware(ts->fw_name);
 		//enable idle baseline update
 		nvt_set_custom_cmd(0x19, 0x00);
+		nvt_set_doze_delay(120);
 		//enter doze mode
 		nvt_set_custom_cmd(0x01, 0x02);
 		goto XFER_ERROR;
@@ -1053,8 +1064,9 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 		}
 	}
 
+	//enter doze mode without skipping delay
 	if (!finger_cnt)
-		nvt_set_custom_cmd(0x01, 0x02);
+		nvt_write_addr(0x1144e4, 0x2);
 
 	for (i = 0; i < ts->max_touch_num; i++) {
 		if (press_id[i] != 1) {
@@ -1799,6 +1811,7 @@ static int32_t nvt_ts_resume(struct device *dev)
 
 	//enable idle baseline update
 	nvt_set_custom_cmd(0x19, 0x00);
+	nvt_set_doze_delay(120);
 	//enter doze mode
 	nvt_set_custom_cmd(0x01, 0x02);
 

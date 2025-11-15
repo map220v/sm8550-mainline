@@ -890,6 +890,7 @@ void Boot_Update_Firmware(struct work_struct *work)
 	nvt_get_fw_info();
 	//enable idle baseline update
 	nvt_set_custom_cmd(0x19, 0x00);
+	nvt_set_doze_delay(120);
 	//enter doze mode
 	nvt_set_custom_cmd(0x01, 0x02);
 	//test
