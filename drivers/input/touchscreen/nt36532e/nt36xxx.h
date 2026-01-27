@@ -160,7 +160,6 @@ struct nvt_ts_data {
 	struct workqueue_struct *event_wq;
 	struct work_struct resume_work;
 	bool panel_on;
-	uint8_t *data_buf;
 };
 
 typedef enum {
@@ -187,7 +186,6 @@ typedef enum {
 #define NVT_TRANSFER_LEN	(63*1024)
 #define NVT_READ_LEN		(8*1024)
 #define NVT_XBUF_LEN		(NVT_TRANSFER_LEN+1+DUMMY_BYTES)
-#define NVT_DATA_LEN		(8*1024)
 
 typedef enum {
 	NVTWRITE = 0,
