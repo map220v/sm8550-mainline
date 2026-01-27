@@ -951,7 +951,7 @@ return:
 static irqreturn_t nvt_ts_work_func(int irq, void *data)
 {
 	int32_t ret = -1;
-	uint8_t *point_data = ts->data_buf;
+	uint8_t point_data[POINT_DATA_LEN + 1 + DUMMY_BYTES];
 	uint8_t fw_state[7];
 	uint32_t position = 0;
 	uint32_t input_x = 0;
@@ -986,13 +986,14 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	}
 
 	nvt_set_page(0x117700);
+	point_data[0] = 0x40; //0x117740
 #if NVT_SUPER_RESOLUTION_N
-	ret = CTP_SPI_READ(ts->client, point_data, 0x40 + POINT_DATA_LEN + 1);
+	ret = CTP_SPI_READ(ts->client, point_data, POINT_DATA_LEN + 1);
 #else /* #if NVT_SUPER_RESOLUTION_N */
 	if (ts->pen_support)
-		ret = CTP_SPI_READ(ts->client, point_data, 0x40 + POINT_DATA_LEN + PEN_DATA_LEN + 1);
+		ret = CTP_SPI_READ(ts->client, point_data, POINT_DATA_LEN + PEN_DATA_LEN + 1);
 	else
-		ret = CTP_SPI_READ(ts->client, point_data, 0x40 + POINT_DATA_LEN + 1);
+		ret = CTP_SPI_READ(ts->client, point_data, POINT_DATA_LEN + 1);
 #endif /* #if NVT_SUPER_RESOLUTION_N */
 	nvt_set_page(ts->mmap->EVENT_BUF_ADDR);
 	if (ret < 0) {
@@ -1032,7 +1033,7 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	}
 
 	for (i = 0; i < ts->max_touch_num; i++) {
-		position = 1 + 0x40 + 0x4c * i;
+		position = 1 + 0x4c * i;
 		input_id = i;
 		if (point_data[position] & 0x07) {
 #if NVT_SUPER_RESOLUTION_N
@@ -1329,13 +1330,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 		goto err_malloc_rbuf;
 	}
 
-	ts->data_buf = (uint8_t *)kzalloc(NVT_DATA_LEN, GFP_KERNEL);
-	if(ts->data_buf == NULL) {
-		NVT_ERR("kzalloc for data_buf failed!\n");
-		ret = -ENOMEM;
-		goto err_malloc_data_buf;
-	}
-
 	ts->client = client;
 	spi_set_drvdata(client, ts);
 
@@ -1583,12 +1577,6 @@ err_chipvertrim_failed:
 	nvt_gpio_deconfig(ts);
 err_spi_setup:
 err_ckeck_full_duplex:
-	spi_set_drvdata(client, NULL);
-	if (ts->data_buf) {
-		kfree(ts->data_buf);
-		ts->data_buf = NULL;
-	}
-err_malloc_data_buf:
 	if (ts->rbuf) {
 		kfree(ts->rbuf);
 		ts->rbuf = NULL;
@@ -1652,11 +1640,6 @@ static void nvt_ts_remove(struct spi_device *client)
 	}
 
 	spi_set_drvdata(client, NULL);
-
-	if (ts->data_buf) {
-		kfree(ts->data_buf);
-		ts->data_buf = NULL;
-	}
 
 	if (ts->rbuf) {
 		kfree(ts->rbuf);
