@@ -11,6 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
@@ -44,6 +45,16 @@ struct nanosic_wn8030 {
 
 	bool suspended;
 	bool keyboard_attached;
+
+	/* Authentication */
+	struct miscdevice auth_misc;
+	wait_queue_head_t auth_read_wq;
+	struct completion auth_token_ready;
+	bool auth_open;
+	bool auth_request_pending;
+	u8 auth_uid[16];
+	u8 auth_challenge[16];
+	u8 auth_token[16];
 };
 
 static const struct regmap_config nanosic_wn8030_regmap_config = {
@@ -362,6 +373,52 @@ static int nanosic_wn8030_set_kb_power(struct nanosic_wn8030 *nanosic, bool enab
 	return regmap_bulk_write(nanosic->regmap, 0x5c, buf, sizeof(buf));
 }
 
+static int nanosic_wn8030_xm_auth_init(struct nanosic_wn8030 *nanosic)
+{
+	u8 buf[XM_WN8030_I2C_WRITE] = { 0x32, 0x00, 0x4F, 0x31,
+					0x80, 0x38, 0x31, 0x06,
+					0x4d, 0x49, 0x41, 0x55, 0x54, 0x48,
+					0x00 };
+
+	buf[14] = nanosic_wn8030_checksum8(&buf[2], 13);
+
+	return regmap_bulk_write(nanosic->regmap, 0x5c, buf, sizeof(buf));
+}
+
+static int nanosic_wn8030_xm_auth_s3t1(struct nanosic_wn8030 *nanosic, u8 *key_meta, u8 *challenge)
+{
+	u8 buf[XM_WN8030_I2C_WRITE] = { 0x32, 0x00, 0x4f, 0x31,
+					0x80, 0x38, 0x32, 0x14,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00 };
+
+	memcpy(&buf[8], key_meta, 4);
+	memcpy(&buf[12], challenge, 16);
+	buf[28] = nanosic_wn8030_checksum8(&buf[2], 26);
+
+	return regmap_bulk_write(nanosic->regmap, 0x5c, buf, sizeof(buf));
+}
+
+static int nanosic_wn8030_xm_auth_s5t1(struct nanosic_wn8030 *nanosic, u8 *token)
+{
+	u8 buf[XM_WN8030_I2C_WRITE] = { 0x32, 0x00, 0x4f, 0x31,
+					0x80, 0x38, 0x33, 0x10,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00,
+					0x00 };
+
+	memcpy(&buf[8], token, 16);
+	buf[24] = nanosic_wn8030_checksum8(&buf[2], 22);
+
+	return regmap_bulk_write(nanosic->regmap, 0x5c, buf, sizeof(buf));
+}
+
 static int nanosic_wn8030_output_report(struct hid_device *hid, u8 *buf, size_t count)
 {
 	struct nanosic_wn8030 *nanosic = hid->driver_data;
@@ -472,6 +529,38 @@ static void nanosic_wn8030_handle_vendor(struct nanosic_wn8030 *nanosic, u8 *buf
 		}
 		mutex_unlock(&nanosic->conn_mutex);
 	}
+	/* WN8012(KB) -> HOST, kb auth */
+	/* 0x0/0x1 - init auth, 0x64 - repeat request auth */
+	else if (buf[5] == 0x38 && buf[6] == 0x80 && buf[7] == 0x24) {
+		if (nanosic->auth_open)
+			nanosic_wn8030_xm_auth_init(nanosic);
+	}
+	/* WN8012(KB) -> HOST, kb auth init */
+	else if (buf[5] == 0x38 && buf[6] == 0x80 && buf[7] == 0x31) {
+		/* Use offline auth */
+		u8 key_meta[4] = { 0x00, 0x00, 0x00, 0x02 };
+		u8 challenge[16] = { 0x80, 0x3d, 0x84, 0x36,
+				     0x29, 0x82, 0xde, 0x6a,
+				     0x0e, 0x68, 0x1d, 0x3d,
+				     0x6b, 0x32, 0xa5, 0xa6 };
+
+		reinit_completion(&nanosic->auth_token_ready);
+		memcpy(nanosic->auth_uid, &buf[11], 16);
+
+		nanosic_wn8030_xm_auth_s3t1(nanosic, key_meta, challenge);
+	}
+	/* WN8012(KB) -> HOST, kb auth s3t1 */
+	else if (buf[5] == 0x38 && buf[6] == 0x80 && buf[7] == 0x32) {
+		memcpy(nanosic->auth_challenge, &buf[25], 16);
+		nanosic->auth_request_pending = true;
+		wake_up_interruptible(&nanosic->auth_read_wq);
+		if (wait_for_completion_interruptible_timeout(&nanosic->auth_token_ready,
+							      msecs_to_jiffies(5000)) <= 0) {
+			dev_err(nanosic->dev, "timeout waiting for keyboard auth token\n");
+		} else {
+			nanosic_wn8030_xm_auth_s5t1(nanosic, nanosic->auth_token);
+		}
+	}
 }
 
 static irqreturn_t nanosic_wn8030_handler(int irq, void *data)
@@ -509,7 +598,9 @@ static irqreturn_t nanosic_wn8030_handler(int irq, void *data)
 			hid_input_report(nanosic->hid_touchpad, HID_INPUT_REPORT,
 					 &buf[3], 21, 0);
 		break;
+	case 0x22:
 	case 0x23:
+	case 0x24:
 		nanosic_wn8030_handle_vendor(nanosic, buf);
 		break;
 	}
@@ -737,6 +828,82 @@ static void nanosic_wn8030_wake_worker(struct work_struct *data)
 	schedule_delayed_work(&nanosic->wake_worker, msecs_to_jiffies(12000));
 }
 
+struct nanosic_auth_req {
+	u8 uid[16];
+	u8 challenge[16];
+};
+
+static int nanosic_auth_open(struct inode *inode, struct file *file)
+{
+	struct nanosic_wn8030 *nanosic =
+		container_of(file->private_data, struct nanosic_wn8030, auth_misc);
+
+	if (nanosic->auth_open)
+		return -EBUSY;
+	nanosic->auth_open = true;
+	file->private_data = nanosic;
+	return 0;
+}
+
+static int nanosic_auth_release(struct inode *inode, struct file *file)
+{
+	struct nanosic_wn8030 *nanosic = file->private_data;
+
+	nanosic->auth_open = false;
+	return 0;
+}
+
+static ssize_t nanosic_auth_read(struct file *file, char __user *buf,
+				 size_t count, loff_t *off)
+{
+	struct nanosic_wn8030 *nanosic = file->private_data;
+	struct nanosic_auth_req req;
+	int ret;
+
+	if (count != sizeof(req))
+		return -EINVAL;
+
+	ret = wait_event_interruptible(nanosic->auth_read_wq,
+				       nanosic->auth_request_pending);
+	if (ret)
+		return ret;
+
+	memcpy(req.uid, nanosic->auth_uid, sizeof(req.uid));
+	memcpy(req.challenge, nanosic->auth_challenge, sizeof(req.challenge));
+	nanosic->auth_request_pending = false;
+
+	if (copy_to_user(buf, &req, sizeof(req)))
+		return -EFAULT;
+
+	return sizeof(req);
+}
+
+static ssize_t nanosic_auth_write(struct file *file, const char __user *buf,
+				  size_t count, loff_t *off)
+{
+	struct nanosic_wn8030 *nanosic = file->private_data;
+	u8 token[16];
+
+	if (count != sizeof(token))
+		return -EINVAL;
+
+	if (copy_from_user(token, buf, sizeof(token)))
+		return -EFAULT;
+
+	memcpy(nanosic->auth_token, token, sizeof(token));
+	complete(&nanosic->auth_token_ready);
+
+	return sizeof(token);
+}
+
+static const struct file_operations nanosic_auth_fops = {
+	.owner = THIS_MODULE,
+	.open = nanosic_auth_open,
+	.release = nanosic_auth_release,
+	.read = nanosic_auth_read,
+	.write = nanosic_auth_write,
+};
+
 static int nanosic_wn8030_probe(struct i2c_client *client)
 {
 	struct nanosic_wn8030 *nanosic;
@@ -789,22 +956,36 @@ static int nanosic_wn8030_probe(struct i2c_client *client)
 
 	INIT_DELAYED_WORK(&nanosic->wake_worker, nanosic_wn8030_wake_worker);
 
+	init_waitqueue_head(&nanosic->auth_read_wq);
+	init_completion(&nanosic->auth_token_ready);
+
+	nanosic->auth_open = false;
+	nanosic->auth_misc.minor = MISC_DYNAMIC_MINOR;
+	nanosic->auth_misc.name = "nanosic_auth";
+	nanosic->auth_misc.fops = &nanosic_auth_fops;
+	nanosic->auth_misc.parent = nanosic->dev;
+	ret = misc_register(&nanosic->auth_misc);
+	if (ret) {
+		dev_err(nanosic->dev, "failed to register misc device\n");
+		goto err;
+	}
+
 	ret = nanosic_wn8030_check_boot_id(nanosic);
 	if (ret)
-		goto err;
+		goto err_misc;
 
 	ret = nanosic_wn8030_get_boot_state(nanosic);
 	if (ret < 0)
-		goto err;
+		goto err_misc;
 
 	if (ret) {
 		ret = dev_err_probe(nanosic->dev, -EINVAL, "unexpected initial bootloader state %d\n", ret);
-		goto err;
+		goto err_misc;
 	}
 
 	ret = nanosic_wn8030_load_fw(nanosic);
 	if (ret)
-		goto err;
+		goto err_misc;
 
 	ret = devm_request_threaded_irq(&client->dev, client->irq,
 					NULL, nanosic_wn8030_handler,
@@ -812,11 +993,13 @@ static int nanosic_wn8030_probe(struct i2c_client *client)
 					"nanosic_wn8030_irq", nanosic);
 	if (ret) {
 		ret = dev_err_probe(nanosic->dev, ret, "failed to request irq %d\n", client->irq);
-		goto err;
+		goto err_misc;
 	}
 
 	return 0;
 
+err_misc:
+	misc_deregister(&nanosic->auth_misc);
 err:
 	nanosic_wn8030_power_off(nanosic);
 
@@ -829,6 +1012,8 @@ static void nanosic_wn8030_remove(struct i2c_client *client)
 
 	disable_irq(nanosic->client->irq);
 	cancel_delayed_work_sync(&nanosic->wake_worker);
+
+	misc_deregister(&nanosic->auth_misc);
 
 	if (nanosic->hid_keyboard)
 		hid_destroy_device(nanosic->hid_keyboard);
