@@ -133,7 +133,7 @@ static void ktz8866_init(struct ktz8866 *ktz)
 	}
 
 	if (of_property_read_bool(ktz->client->dev.of_node, "kinetic,enable-lcd-bias"))
-		ktz8866_write(ktz, LCD_BIAS_CFG1, LCD_BIAS_EN);
+		regmap_write(ktz->regmap, LCD_BIAS_CFG1, LCD_BIAS_EN);
 }
 
 static int ktz8866_probe(struct i2c_client *client)
@@ -156,12 +156,9 @@ static int ktz8866_probe(struct i2c_client *client)
 	if (IS_ERR(ktz->regmap))
 		return dev_err_probe(&client->dev, PTR_ERR(ktz->regmap), "failed to init regmap\n");
 
-	ret = devm_regulator_get_enable(&client->dev, "vddpos");
+	ret = devm_regulator_get_enable(&client->dev, "vin");
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "get regulator vddpos failed\n");
-	ret = devm_regulator_get_enable(&client->dev, "vddneg");
-	if (ret)
-		return dev_err_probe(&client->dev, ret, "get regulator vddneg failed\n");
+		return dev_err_probe(&client->dev, ret, "get regulator vin failed\n");
 
 	if (id->driver_data == 2) {
 		ktz_b = ktz;

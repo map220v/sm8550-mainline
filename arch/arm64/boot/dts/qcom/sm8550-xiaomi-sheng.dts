@@ -1000,8 +1000,7 @@
 	backlight: backlight@11 {
 		compatible = "kinetic,ktz8866a";
 		reg = <0x11>;
-		vddpos-supply = <&bl_vddpos_5p8>;
-		vddneg-supply = <&bl_vddneg_5p8>;
+		vin-supply = <&vph_pwr>;
 		enable-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
 		current-num-sinks = <5>;
 		kinetic,current-ramp-delay-ms = <256>;
@@ -1172,8 +1171,7 @@
 	backlight@11 {
 		compatible = "kinetic,ktz8866b";
 		reg = <0x11>;
-		vddpos-supply = <&bl_vddpos_5p8>;
-		vddneg-supply = <&bl_vddneg_5p8>;
+		vin-supply = <&vph_pwr>;
 		enable-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
 		current-num-sinks = <5>;
 		kinetic,current-ramp-delay-ms = <256>;
