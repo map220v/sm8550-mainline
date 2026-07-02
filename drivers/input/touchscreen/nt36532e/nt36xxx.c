@@ -925,7 +925,7 @@ void nvt_read_fw_history(uint32_t fw_history_addr)
     CTP_SPI_READ(ts->client, buf, 64+1);	//read 64bytes history
 
 	//print all data
-	NVT_LOG("fw history 0x%X: \n", fw_history_addr);
+	NVT_ERR("fw history 0x%X: \n", fw_history_addr);
 	for (i = 0; i < 4; i++) {
 		snprintf(str, sizeof(str),
 				"%02X %02X %02X %02X %02X %02X %02X %02X  "
@@ -934,7 +934,7 @@ void nvt_read_fw_history(uint32_t fw_history_addr)
 				buf[5+i*16], buf[6+i*16], buf[7+i*16], buf[8+i*16],
 				buf[9+i*16], buf[10+i*16], buf[11+i*16], buf[12+i*16],
 				buf[13+i*16], buf[14+i*16], buf[15+i*16], buf[16+i*16]);
-		NVT_LOG("%s", str);
+		NVT_ERR("%s", str);
 	}
 
 	nvt_set_page(ts->mmap->EVENT_BUF_ADDR);
